@@ -12,14 +12,22 @@ def main():
         sys.exit("Usage: python pagerank.py corpus")
     corpus = crawl(sys.argv[1])
     ranks = sample_pagerank(corpus, DAMPING, SAMPLES)
+    total_sum = 0
     print(f"PageRank Results from Sampling (n = {SAMPLES})")
     for page in sorted(ranks):
         print(f"  {page}: {ranks[page]:.4f}")
+        total_sum += ranks[page]
 
+    print(f"total_sum = {total_sum}")
+
+    total_sum_2 = 0
     ranks = iterate_pagerank(corpus, DAMPING)
     print(f"PageRank Results from Iteration")
     for page in sorted(ranks):
         print(f"  {page}: {ranks[page]:.4f}")
+        total_sum_2 += ranks[page]
+
+    print(f"total_sum = {total_sum_2}")
 
 
 def crawl(directory):
@@ -66,7 +74,11 @@ def transition_model(corpus, page, damping_factor):
     noDamping = (1 - damping_factor) / countCorpusPages
 
     # Calculate each linked page chance
-    damping = damping_factor / countLinkedPages
+    if countLinkedPages == 0:
+        damping = damping_factor / countCorpusPages
+    else:
+        damping = damping_factor / countLinkedPages
+
     withDamping = damping + noDamping
 
     result = {}
@@ -133,32 +145,35 @@ def iterate_pagerank(corpus, damping_factor):
 
     enough = True
 
+    # update page rank until change is less than 0.001
     while enough:
         enough = False
+        # for each page in the corpus calculate a new page rank
         for page in corpus:
             page_rank = calc_page_rank(corpus, ranks, page)
             summ = page_rank - ranks[page]
-            if summ > abs(1):
+            if summ > abs(0.001):
                 enough = True
-            ranks[page] = page_rank
-
-    test_sum = 0
-    for key, values in ranks.items():
-        test_sum += values
-
+            ranks[page] = round(page_rank, 3)
     return ranks
 
 
 def calc_page_rank(corpus, current_ranks, page):
 
-    dSum = 0
+    # calculate a page's rank based on the formula from the problem desc.
+    sigma = 0
     for key, values in corpus.items():
-        if page in values:
+        # if a page has no links, consider it as having one link to each page incl. self
+        if len(values) == 0:
             prI = current_ranks[key]
-            dSum += (prI / len(values))
+            sigma += (prI / len(corpus))
+        else:
+            if page in values:
+                prI = current_ranks[key]
+                sigma += (prI / len(values))
 
     first_part = (1 - DAMPING) / len(corpus)
-    pageRank = round(first_part + (DAMPING * dSum), 3)
+    pageRank = first_part + (DAMPING * sigma)
     return pageRank
 
 
